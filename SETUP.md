@@ -1,9 +1,12 @@
 # Setup Guide
 
-## 0. Clone the Repository
-To run the project, you can first clone the repository on github or just unzip the zip file.
+## 0. Set up
+There are three ways to run to project.
+1. https://portfolio-tracking-system-and-robo-advisor.streamlit.app/ (may have rate limiting)
+2. Clone the project from github and run locally
+3. Unzip the zip file and run locally
 
-### Cloning
+### Clone the project from github
 Open a terminal and run:
 ```bash
 git clone https://github.com/yutsz1203/robo-advisor-and-portfolio-tracking-system.git
