@@ -73,10 +73,65 @@ def rebalance_dialog(current, target):
         )
 
 
+MARKET_TICKERS = {"VOO", "2800.HK", "VXUS"}
+SECTOR_TICKERS = {
+    "XLK",
+    "XLF",
+    "XLV",
+    "XLY",
+    "XLP",
+    "XLI",
+    "XLE",
+    "XLU",
+    "XLB",
+    "XLRE",
+    "XLC",
+}
+COMMODITY_TICKERS = {"GLD", "SLV", "USO", "DBB", "DBA", "DJP", "IBIT"}
+
+
+def get_asset_category(asset):
+    if asset == "BND":
+        return "Bond"
+    if asset in MARKET_TICKERS:
+        return "Market"
+    if asset in SECTOR_TICKERS:
+        return "Sector"
+    return "Commodity"
+
+
+def apply_custom_category_weights(base_df, new_cat_weights):
+    result = base_df.copy()
+    result["Category"] = result["Asset"].apply(get_asset_category)
+    cat_totals = result.groupby("Category")["Weight"].sum()
+    for cat, new_weight in new_cat_weights.items():
+        mask = result["Category"] == cat
+        old_total = cat_totals.get(cat, 0)
+        if old_total > 0:
+            result.loc[mask, "Weight"] = (
+                result.loc[mask, "Weight"] / old_total * new_weight
+            )
+    return result.drop(columns=["Category"])
+
+
 def load_results():
     with open("output/risk_assessment_result.json", "r") as f:
         res = json.load(f)
     return res
+
+
+def save_custom_weights(cat_weights):
+    res = load_results()
+    res["custom_cat_weights"] = cat_weights
+    with open("output/risk_assessment_result.json", "w") as f:
+        json.dump(res, f, indent=4)
+
+
+def clear_custom_weights():
+    res = load_results()
+    res.pop("custom_cat_weights", None)
+    with open("output/risk_assessment_result.json", "w") as f:
+        json.dump(res, f, indent=4)
 
 
 def get_robo_holdings(df, rate_df, user_info):
@@ -142,14 +197,30 @@ risk_preference = res["risk_preference"]
 total_investment = res["total_investment"]
 asset_list = res["asset_list"]
 
+if "custom_cat_weights" not in st.session_state and "custom_cat_weights" in res:
+    st.session_state["custom_cat_weights"] = res["custom_cat_weights"]
+
 
 weights_df, model_weights = portfolio_optimize(risk_preference, asset_list)
+system_weights_df = weights_df.copy()
 holdings_df = get_robo_holdings(weights_df, rate_df, res)
 holdings_check = holdings_df[["Asset", "Current Weight"]]
 holdings_check.columns = ["Symbol", "Weight"]
 weights_df = weights_df.reset_index()
 rebalance = rebalance_check(weights_df)
 
+
+if "custom_cat_weights" in st.session_state:
+    _custom_raw = apply_custom_category_weights(
+        system_weights_df, st.session_state["custom_cat_weights"]
+    )
+    active_holdings_df = get_robo_holdings(_custom_raw, rate_df, res)
+    active_cat_weights = st.session_state["custom_cat_weights"]
+else:
+    active_holdings_df = holdings_df
+    active_cat_weights = model_weights
+
+active_rebalance = rebalance_check(active_holdings_df)
 
 st.set_page_config(page_icon="💼", layout="wide")
 st.title("💼 Robo Advisor")
@@ -160,6 +231,7 @@ tab1, tab2 = st.tabs(
     ]
 )
 with tab1:
+
     st.markdown("### Recommended Portfolio")
     col1, col2 = st.columns(2)
     with col1:
@@ -169,15 +241,72 @@ with tab1:
 
     col3, col4, col5, col6 = st.columns(4)
     with col3:
-        st.write(f"Bond: {model_weights['Bond']*100:.2f}%")
+        st.write(f"Bond: {active_cat_weights['Bond']*100:.2f}%")
     with col4:
-        st.write(f"Broad Market: {model_weights['Market']*100:.2f}%")
+        st.write(f"Broad Market: {active_cat_weights['Market']*100:.2f}%")
     with col5:
-        st.write(f"Sector: {model_weights['Sector']*100:.2f}%")
+        st.write(f"Sector: {active_cat_weights['Sector']*100:.2f}%")
     with col6:
-        st.write(f"Commodity: {model_weights['Commodity']*100:.2f}%")
+        st.write(f"Commodity: {active_cat_weights['Commodity']*100:.2f}%")
 
-    optimised_fig = px.pie(weights_df, values="Weight", names="Asset")
+    has_sector = model_weights["Sector"] > 0
+    has_commodity = model_weights["Commodity"] > 0
+    with st.expander("Customise Category Allocation"):
+        st.caption("Adjust the category weights below. Values must sum to 100%.")
+        default = st.session_state.get("custom_cat_weights", model_weights)
+        cc1, cc2, cc3, cc4 = st.columns(4)
+        bond_pct = cc1.number_input(
+            "Bond (%)",
+            min_value=0,
+            max_value=100,
+            step=1,
+            value=int(round(default["Bond"] * 100)),
+        )
+        market_pct = cc2.number_input(
+            "Broad Market (%)",
+            min_value=0,
+            max_value=100,
+            step=1,
+            value=int(round(default["Market"] * 100)),
+        )
+        sector_pct = cc3.number_input(
+            "Sector (%)",
+            min_value=0,
+            max_value=100,
+            step=1,
+            value=int(round(default["Sector"] * 100)),
+            disabled=not has_sector,
+        )
+        commodity_pct = cc4.number_input(
+            "Commodity (%)",
+            min_value=0,
+            max_value=100,
+            step=1,
+            value=int(round(default["Commodity"] * 100)),
+            disabled=not has_commodity,
+        )
+        total_pct = bond_pct + market_pct + sector_pct + commodity_pct
+        if total_pct == 100:
+            st.success(f"Total: {total_pct}%")
+        else:
+            st.warning(f"Total: {total_pct}% — must equal 100% to apply.")
+        btn_col1, btn_col2, _ = st.columns([1, 1, 6])
+        if btn_col1.button("Apply", type="primary", disabled=total_pct != 100):
+            new_weights = {
+                "Bond": bond_pct / 100,
+                "Market": market_pct / 100,
+                "Sector": sector_pct / 100,
+                "Commodity": commodity_pct / 100,
+            }
+            st.session_state["custom_cat_weights"] = new_weights
+            save_custom_weights(new_weights)
+            st.rerun()
+        if btn_col2.button("Reset to Recommended"):
+            st.session_state.pop("custom_cat_weights", None)
+            clear_custom_weights()
+            st.rerun()
+
+    optimised_fig = px.pie(active_holdings_df, values="Weight", names="Asset")
     optimised_fig.update_traces(
         hovertemplate="Asset=%{label}<br>Weight=%{value}<extra></extra>",
         textfont_size=16,
@@ -186,7 +315,7 @@ with tab1:
 
     st.plotly_chart(optimised_fig, key="optimised_chart")
     st.markdown("### Detailed Allocation")
-    holdings_display = holdings_df[
+    holdings_display = active_holdings_df[
         ["Asset", "Weight", "Amount to buy", "Shares to buy"]
     ].copy()
     holdings_display["Weight"] *= 100
@@ -195,10 +324,11 @@ with tab1:
     st.dataframe(holdings_display, hide_index=True)
 
     st.markdown("### Historical Returns")
-    returns = historical_return(tickers=weights_df["Asset"].tolist())
-    weights_return_df = weights_df.set_index("Asset")
-    holdings_return_df = holdings_df.set_index("Asset")
-    daily_return = returns[weights_return_df.index].dot(holdings_return_df[["Weight"]])
+    returns = historical_return(tickers=active_holdings_df["Asset"].tolist())
+    active_holdings_indexed = active_holdings_df.set_index("Asset")
+    daily_return = returns[active_holdings_indexed.index].dot(
+        active_holdings_indexed[["Weight"]]
+    )
     period = st.pills(
         "Time period",
         ["1W", "MTD", "1M", "3M", "YTD", "1Y", "5Y"],
@@ -245,23 +375,25 @@ with tab2:
     with col7:
         st.markdown(f"#### Initial Investment: $ {total_investment:.2f}")
     with col8:
-        st.markdown(f"#### Current Value: $ {holdings_df['Market Value'].sum():.2f}")
+        st.markdown(
+            f"#### Current Value: $ {active_holdings_df['Market Value'].sum():.2f}"
+        )
     with col9:
-        total_p_and_l = holdings_df["Unrealised P&L"].sum()
+        total_p_and_l = active_holdings_df["Unrealised P&L"].sum()
         if total_p_and_l < 0:
             st.markdown(f"#### Unrealized P&L: :red[${total_p_and_l:,.2f}]")
         else:
             st.markdown(f"#### Unrealized P&L: :green[${total_p_and_l:,.2f}]")
-    if rebalance:
+    if active_rebalance:
         st.warning("Rebalancing available")
         if st.button("Show rebalance", type="primary"):
             rebalance_dialog(
-                holdings_df[
+                active_holdings_df[
                     ["Asset", "Current Weight", "Market Value", "Current Price"]
                 ],
-                weights_df,
+                active_holdings_df,
             )
-    current_holdings = holdings_df.copy()
+    current_holdings = active_holdings_df.copy()
     current_holdings = current_holdings[
         [
             "Asset",

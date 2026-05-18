@@ -125,6 +125,73 @@ def evaluation(score: int):
         return "Aggressive Growth"
 
 
+def detect_contradictions(answers, meta):
+    scores = {
+        "Q1": Q1_QS_MAP[answers["Q1"]],
+        "Q3": Q3_QS_MAP[answers["Q3"]],
+        "Q4": Q4_QS_MAP[answers["Q4"]],
+        "Q6": Q6_QS_MAP[answers["Q6"]],
+    }
+    pairs = [
+        ("Q1", "Q3", "Investment goal", "reaction to a 15% drop"),
+        ("Q1", "Q4", "Investment goal", "comfort with risk"),
+        ("Q4", "Q6", "Comfort with risk", "portfolio preference"),
+        ("Q3", "Q6", "Reaction to a 15% drop", "portfolio preference"),
+    ]
+    contradictions = []
+    for qa, qb, label_a, label_b in pairs:
+        if abs(scores[qa] - scores[qb]) >= 2:
+            contradictions.append(
+                f'**{label_a}** ("{answers[qa]}") conflicts with **{label_b}** ("{answers[qb]}")'
+            )
+    bitcoin_index = COMMODITIES.index("Bitcoin")
+    if meta["commodities"][bitcoin_index] and scores["Q4"] <= 2:
+        contradictions.append(
+            f'**Bitcoin** is selected but your comfort with risk is low ("{answers["Q4"]}").'
+            " Bitcoin is highly volatile and may not suit your risk profile."
+        )
+    return contradictions
+
+
+def process_submission(answers, meta):
+    score = (
+        Q1_QS_MAP[answers["Q1"]]
+        + Q2_QS_MAP[answers["Q2"]]
+        + Q3_QS_MAP[answers["Q3"]]
+        + Q4_QS_MAP[answers["Q4"]]
+        + Q5_QS_MAP[answers["Q5"]]
+        + Q6_QS_MAP[answers["Q6"]]
+        + Q7_QS_MAP[answers["Q7"]]
+        + Q8_QS_MAP[answers["Q8"]]
+        + Q9_QS_MAP[answers["Q9"]]
+    )
+    resultScore = evaluation(score)
+    st.success(f"Success! Your risk preference is : {resultScore}")
+
+    resultEtf = ["BND"]
+    if meta["US"]:
+        resultEtf.append("VOO")
+    if meta["HK"]:
+        resultEtf.append("2800.HK")
+    if meta["Global"]:
+        resultEtf.append("VXUS")
+    for i, checked in enumerate(meta["sectors"]):
+        if checked:
+            resultEtf.append(SECTOR_MAP[list(SECTOR_MAP.keys())[i]])
+    for i, checked in enumerate(meta["commodities"]):
+        if checked:
+            resultEtf.append(COMMODITIES_MAP[list(COMMODITIES_MAP.keys())[i]])
+
+    result = {
+        "risk_preference": resultScore,
+        "total_investment": meta["total_invest"],
+        "asset_list": resultEtf,
+        "created_on": str(date.today()),
+    }
+    with open("output/risk_assessment_result.json", "w") as f:
+        json.dump(result, f, indent=4)
+
+
 _ = st.title("📝 Risk Assessment")
 st.write("Risk Assessment page to evaluate your tolerance and financial goal")
 tab1 = st.tabs(["Risk Evaluation"])
@@ -228,39 +295,42 @@ if submit_button:
     ):
         _ = st.warning("Please fill in the questions accordingly")
     else:
-        score = 0
-        score += Q1_QS_MAP[Inv_Q1]
-        score += Q2_QS_MAP[Inv_Q2]
-        score += Q3_QS_MAP[Inv_Q3]
-        score += Q4_QS_MAP[Inv_Q4]
-        score += Q5_QS_MAP[Inv_Q5]
-        score += Q6_QS_MAP[Inv_Q6]
-        score += Q7_QS_MAP[Inv_Q7]
-        score += Q8_QS_MAP[Inv_Q8]
-        score += Q9_QS_MAP[Inv_Q9]
-        resultScore = evaluation(score)
-        _ = st.success(f"Success! Your risk preference is : {resultScore}")
-
-        resultEtf = ["BND"]
-        if US_checkbox:
-            resultEtf.append("VOO")
-        if HK_checkbox:
-            resultEtf.append("2800.HK")
-        if Global_checkbox:
-            resultEtf.append("VXUS")
-        for i in range(len(sector_checkboxs)):
-            if sector_checkboxs[i]:
-                resultEtf.append(SECTOR_MAP[list(SECTOR_MAP.keys())[i]])
-        for i in range(len(commodities_checkboxs)):
-            if commodities_checkboxs[i]:
-                resultEtf.append(COMMODITIES_MAP[list(COMMODITIES_MAP.keys())[i]])
-
-        result = {
-            "risk_preference": resultScore,
-            "total_investment": total_invest,
-            "asset_list": resultEtf,
-            "created_on": str(date.today()),
+        answers = {
+            "Q1": Inv_Q1, "Q2": Inv_Q2, "Q3": Inv_Q3,
+            "Q4": Inv_Q4, "Q5": Inv_Q5, "Q6": Inv_Q6,
+            "Q7": Inv_Q7, "Q8": Inv_Q8, "Q9": Inv_Q9,
         }
+        meta = {
+            "US": US_checkbox,
+            "HK": HK_checkbox,
+            "Global": Global_checkbox,
+            "sectors": sector_checkboxs[:],
+            "commodities": commodities_checkboxs[:],
+            "total_invest": total_invest,
+        }
+        contradictions = detect_contradictions(answers, meta)
+        if contradictions:
+            st.session_state["pending_answers"] = answers
+            st.session_state["pending_meta"] = meta
+            st.session_state["pending_contradictions"] = contradictions
+        else:
+            process_submission(answers, meta)
 
-        with open("output/risk_assessment_result.json", "w") as f:
-            json.dump(result, f, indent=4)
+if st.session_state.get("pending_contradictions"):
+    st.warning(
+        "Some of your answers appear to contradict each other:\n\n"
+        + "\n".join(f"- {c}" for c in st.session_state["pending_contradictions"])
+        + "\n\nPlease review your answers or confirm to proceed."
+    )
+    confirm_col, revise_col, _ = st.columns([2, 2, 8])
+    if confirm_col.button("Confirm & Submit", type="primary"):
+        process_submission(
+            st.session_state.pop("pending_answers"),
+            st.session_state.pop("pending_meta"),
+        )
+        st.session_state.pop("pending_contradictions")
+    if revise_col.button("Revise Answers"):
+        st.session_state.pop("pending_contradictions")
+        st.session_state.pop("pending_answers")
+        st.session_state.pop("pending_meta")
+        st.rerun()

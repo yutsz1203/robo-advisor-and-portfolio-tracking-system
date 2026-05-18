@@ -85,7 +85,7 @@ def fetch_holdings() -> pd.DataFrame:
     """
     conn = st.connection("mysql", type="sql")
     holdings_df = conn.query(
-        "SELECT h.symbol, a.currentPrice, h.quantity, h.costBasis, s.sector, c.className "
+        "SELECT h.symbol, a.currentPrice, h.quantity, h.costBasis, s.sector, c.className, a.country "
         "FROM Holding h "
         "JOIN Asset a ON h.symbol = a.symbol "
         "JOIN Class c ON a.class = c.classID "
@@ -98,6 +98,7 @@ def fetch_holdings() -> pd.DataFrame:
         "Cost Basis",
         "Sector",
         "Class",
+        "Country",
     ]
     return holdings_df
 

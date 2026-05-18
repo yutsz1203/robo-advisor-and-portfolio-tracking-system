@@ -10,7 +10,19 @@ CURRENCY_SIGN_MAP = {
     "CNY": "CN¥",
 }
 PERIODS = ["1W", "MTD", "1M", "3M", "YTD", "1Y", "All"]
-MARKETS = ["Hong Kong", "US", "World", "UK", "Europe", "Japan", "China"]
+MARKETS = [
+    "Hong Kong",
+    "US",
+    "World",
+    "UK",
+    "Europe",
+    "Japan",
+    "China",
+    "Conservative(70/30)",
+    "Moderate(60/40)",
+    "Growth(40/60)",
+    "Aggressive(20/80)",
+]
 MARKETS_MAP = {
     "Hong Kong": "2800.HK",
     "US": "SPY",
@@ -19,6 +31,10 @@ MARKETS_MAP = {
     "Europe": "EXW1.DE",
     "Japan": "1329.T",
     "China": "2823.HK",
+    "Conservative(70/30)": "AOK",
+    "Moderate(60/40)": "AOM",
+    "Growth(40/60)": "AOR",
+    "Aggressive(20/80)": "AOA",
 }
 RETURN_TEXT = {
     "1W": "in the past week",

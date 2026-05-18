@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from const import CLASS_MAP, CURRENCIES, SECTOR_MAP, SESSION
 
-db_connection_str = "mysql+mysqlconnector://root:8888@192.168.50.31:6608/FYP"
+db_connection_str = "mysql+mysqlconnector://root:8888@miniweb.idv.hk:8080/FYP"
 engine = create_engine(db_connection_str)
 
 
@@ -21,7 +21,7 @@ def db_connect():
     try:
         conn = mariadb.connect(
             host=cfg["host"],
-            port=cfg.get("port", 6608),
+            port=cfg.get("port", 8080),
             user=cfg["user"],
             password=cfg["password"],
             database="FYP",
@@ -33,21 +33,22 @@ def db_connect():
         return None
 
 
-def insert_db(conn, ticker, price, sector, assetClass):
+def insert_db(conn, ticker, price, sector, assetClass, country):
     try:
         conn.execute(
-            "INSERT INTO Asset (symbol, currentPrice, sector, class) VALUES (?, ?, ?, ?)",
-            (ticker, price, sector, assetClass),
+            "INSERT INTO Asset (symbol, currentPrice, sector, class, country) VALUES (?, ?, ?, ?, ?)",
+            (ticker, price, sector, assetClass, country),
         )
     except mariadb.Error as e:
         print(e)
         return update_db(conn, ticker, price)
 
 
-def update_db(conn, ticker, price):
+def update_db(conn, ticker, price, country):
     try:
         conn.execute(
-            "UPDATE Asset SET currentPrice = ? WHERE symbol = ?", (price, ticker)
+            "UPDATE Asset SET currentPrice = ?, country = ? WHERE symbol = ?",
+            (price, country, ticker),
         )
     except mariadb.Error as e:
         print(e)
@@ -133,9 +134,10 @@ def Updater(conn):
             price = info["regularMarketPreviousClose"]
         else:
             continue
+        country = info.get("country", None)
         # insert_db(conn, ticker, price, SECTOR_MAP[sector], CLASS_MAP[assetClass])
-        update_db(conn, ticker, price)
-        # print(ticker, price, SECTOR_MAP[sector], assetClass)
+        update_db(conn, ticker, price, country)
+        print(ticker, price, country)
 
 
 def update_rates(conn, currencies):
@@ -222,20 +224,5 @@ if __name__ == "__main__":
     # print(conn)
     # Test()
     # Screener(conn)
-    # update_rates(conn, CURRENCIES)
-    Updater(conn)
-
-    # get_events(
-    #     conn,
-    #     [
-    #         "2800.HK",
-    #         "300750.SZ",
-    #         "600519.SS",
-    #         "7203.T",
-    #         "ASML.AS",
-    #         "BND",
-    #         "GLD",
-    #         "HSBA.L",
-    #         "IBIT",
-    #     ],
-    # )
+    update_rates(conn, CURRENCIES)
+    # Updater(conn)

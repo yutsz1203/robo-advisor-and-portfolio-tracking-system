@@ -92,7 +92,7 @@ else:
         delete_col1, delete_col2 = st.columns([6, 1], vertical_alignment="bottom")
         selected_tid = delete_col1.selectbox(
             "Transaction ID to delete",
-            options=tx_df["TId"].astype(str).tolist(),
+            options=tx_df["TId"].sort_values().astype(str).tolist(),
         )
         delete_button = delete_col2.form_submit_button("Delete")
 

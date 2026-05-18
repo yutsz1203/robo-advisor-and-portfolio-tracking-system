@@ -7,6 +7,7 @@ from helpers import (
     adjust_period,
     base_currency_format,
     color,
+    country_format,
     create_chart,
     get_start_date,
 )
@@ -65,12 +66,13 @@ chart = create_chart(portfolio_value_df, "date", base, tooltips, title)
 st.altair_chart(chart, use_container_width=True)
 
 
-tab1, tab2, tab3, tab4 = st.tabs(
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
         "Assets",
         "Allocation - Sectors",
         "Allocation - Classes",
         "Allocation - Currencies",
+        "Allocation - Country",
     ]
 )
 
@@ -177,4 +179,26 @@ with tab4:
     currency_allocation.reset_index(inplace=True)
     st.dataframe(
         currency_allocation.sort_values(by="Weight", ascending=False), hide_index=True
+    )
+
+# Allocation by Country
+with tab5:
+    st.markdown("### Portfolio Allocation by Country")
+    holdings_df["Country"] = holdings_df["Country"].apply(country_format)
+    country_fig = px.pie(holdings_df, values="Market Value", names="Country")
+    country_fig.update_traces(
+        hovertemplate="Currency=%{label}<br>Market Value=%{value}<extra></extra>",
+        textfont_size=16,
+    )
+    country_fig.update_layout(legend_font_size=16)
+    st.plotly_chart(country_fig, key="country_chart")
+    country_allocation = holdings_df[["Country", "Market Value"]]
+    country_allocation = country_allocation.groupby("Country").sum()
+    country_allocation["Weight"] = (
+        country_allocation["Market Value"] / country_allocation["Market Value"].sum()
+    )
+    country_allocation = country_allocation[["Weight"]] * 100
+    country_allocation.reset_index(inplace=True)
+    st.dataframe(
+        country_allocation.sort_values(by="Weight", ascending=False), hide_index=True
     )

@@ -27,6 +27,22 @@ def base_currency_format(base_currency):
     return currency_mapping[base_currency]
 
 
+def country_format(country):
+    if not country:
+        return "N.A."
+    country_mapping = {
+        "Hong Kong": "🇭🇰 Hong Kong",
+        "United States": "🇺🇸 United States",
+        "United Kingdom": "🇬🇧 United Kingdom",
+        "Japan": "🇯🇵 Japan",
+        "China": "🇨🇳 China",
+        "Netherlands": "🇳🇱 Netherlands",
+        "Germany": "🇩🇪 Germany",
+        "France": "🇫🇷 France",
+    }
+    return country_mapping.get(country, country)
+
+
 def adjust_period(start: datetime.date, period: str) -> datetime.date:
     today = pd.Timestamp.today().date()
     if period == "1W":

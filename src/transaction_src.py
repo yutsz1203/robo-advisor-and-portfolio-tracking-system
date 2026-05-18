@@ -94,7 +94,7 @@ def validate_ticker(symbol: str):
     if not fetchable:
         return (
             False,
-            f"Ticker '{symbol}' cannot be fetched from Yahoo Finance. Please verify the symbol.",
+            f"Ticker '{symbol}' cannot be fetched from Yahoo Finance. Please verify the symbol. (For HK stock, please use 4 digits, e.g. 0005.HK)",
         )
 
     return True, ""
@@ -234,6 +234,7 @@ def insert_new_asset(conn, symbol: str):
         price = 0
 
     assetClass = info.get("typeDisp", "")
+    country = info.get("country", None)
     if assetClass == "ETF":
         fund_data = ticker.funds_data
         sector_weightings = fund_data.sector_weightings
@@ -262,10 +263,10 @@ def insert_new_asset(conn, symbol: str):
         sector = info.get("sector", "")
         sector = SECTOR_MAP[sector]
 
-    insert_db(conn, symbol, price, sector, assetClass)
+    insert_db(conn, symbol, price, sector, assetClass, country)
 
     print(
-        f"Inserted {symbol}. Price: {price}; Sector: {sector}; Asset Class: {assetClass}."
+        f"Inserted {symbol}. Price: {price}; Sector: {sector}; Asset Class: {assetClass}; Country: {country}."
     )
 
 
