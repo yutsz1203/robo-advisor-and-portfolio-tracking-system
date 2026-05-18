@@ -22,7 +22,7 @@ jsonschema-specifications==2025.9.1
 kiwisolver==1.4.7
 MarkupSafe==3.0.2
 matplotlib==3.9.4
-mariadb
+PyMySQL
 multitasking==0.0.12
 narwhals==2.4.0
 numpy==2.0.2

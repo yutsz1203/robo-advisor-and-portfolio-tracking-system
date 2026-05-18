@@ -54,7 +54,7 @@ with tab1:
     ]
     title = "Portfolio Return"
     chart = create_chart(portfolio_return_df, "date", base, tooltips, title)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
 # Performance Benchmarking
 with tab2:
@@ -132,4 +132,4 @@ with tab2:
     ]
     title = "Portfolio Return vs Benchmark Return"
     chart = create_chart(returns_long, "date", base, tooltips, title)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")

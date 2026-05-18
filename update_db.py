@@ -2,7 +2,7 @@ import csv
 import time
 from datetime import date
 
-import mariadb
+import pymysql
 import pandas as pd
 import streamlit as st
 import yfinance as yf
@@ -12,23 +12,23 @@ from tqdm import tqdm
 
 from const import CLASS_MAP, CURRENCIES, SECTOR_MAP, SESSION
 
-db_connection_str = "mysql+mysqlconnector://root:8888@miniweb.idv.hk:8080/FYP"
+db_connection_str = "mysql+pymysql://root:8888@miniweb.idv.hk:8080/FYP"
 engine = create_engine(db_connection_str)
 
 
 def db_connect():
-    cfg = st.secrets["mariadb"]
+    cfg = st.secrets["db"]
     try:
-        conn = mariadb.connect(
+        conn = pymysql.connect(
             host=cfg["host"],
             port=cfg.get("port", 8080),
             user=cfg["user"],
             password=cfg["password"],
             database="FYP",
+            autocommit=True,
         )
-        conn.autocommit = True
         return conn.cursor()
-    except mariadb.Error as e:
+    except pymysql.Error as e:
         st.error(f"Connection error: {e}")
         return None
 
@@ -36,10 +36,10 @@ def db_connect():
 def insert_db(conn, ticker, price, sector, assetClass, country):
     try:
         conn.execute(
-            "INSERT INTO Asset (symbol, currentPrice, sector, class, country) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO Asset (symbol, currentPrice, sector, class, country) VALUES (%s, %s, %s, %s, %s)",
             (ticker, price, sector, assetClass, country),
         )
-    except mariadb.Error as e:
+    except pymysql.Error as e:
         print(e)
         return update_db(conn, ticker, price)
 
@@ -47,10 +47,10 @@ def insert_db(conn, ticker, price, sector, assetClass, country):
 def update_db(conn, ticker, price, country):
     try:
         conn.execute(
-            "UPDATE Asset SET currentPrice = ?, country = ? WHERE symbol = ?",
+            "UPDATE Asset SET currentPrice = %s, country = %s WHERE symbol = %s",
             (price, country, ticker),
         )
-    except mariadb.Error as e:
+    except pymysql.Error as e:
         print(e)
         return None
 
@@ -58,7 +58,7 @@ def update_db(conn, ticker, price, country):
 def fetch_db(conn):
     try:
         conn.execute("SELECT symbol FROM Asset")
-    except mariadb.Error as e:
+    except pymysql.Error as e:
         print(e)
         return None
     return conn.fetchall()

@@ -1,5 +1,21 @@
 # Setup Guide
 
+## 0. Clone the Repository
+To run the project, you can first clone the repository on github or just unzip the zip file.
+
+### Cloning
+Open a terminal and run:
+```bash
+git clone https://github.com/yutsz1203/robo-advisor-and-portfolio-tracking-system.git
+```
+
+Then navigate into the project folder:
+```bash
+cd robo-advisor-and-portfolio-tracking-system
+```
+
+---
+
 ## 1. Install Python
 
 Ensure **Python 3.11 or later** is installed.
@@ -62,7 +78,33 @@ uv pip install -r requirements.txt
 
 ---
 
-## 4. Update the Database
+## 4. Create the Secrets File
+
+The app needs a secrets file to connect to the database. Create the file at `.streamlit/secrets.toml` inside the project folder with the following content:
+
+```toml
+[db]
+host = "miniweb.idv.hk"
+port = 8080
+user = "root"
+password = "8888"
+database = "FYP"
+
+[connections.mysql]
+dialect = "mysql"
+driver = "pymysql"
+host = "miniweb.idv.hk"
+port = 8080
+username = "root"
+password = "8888"
+database = "FYP"
+```
+
+If the `.streamlit` folder does not exist, create it manually inside the project root before adding the file.
+
+---
+
+## 5. Update the Database
 
 > **Important:** Run this step before launching the app to ensure the latest exchange rates are loaded.
 
@@ -75,13 +117,13 @@ This fetches the latest FX rates from Yahoo Finance and updates the database. It
 
 ---
 
-## 5. Testing the Rebalance Function (Optional)
+## 6. Testing the Rebalance Function (Optional)
 
 To test the rebalancing feature with fixed prices, open `pages/robo_advisor.py` and uncomment lines 158–164 (the hardcoded `current_price` DataFrame), then comment out line 157 (`current_price = fetch_price(...)`). This replaces the live price fetch with static test data so rebalancing can be triggered without waiting for market data.
 
 ---
 
-## 6. Run the App
+## 7. Run the App
 
 ```
 streamlit run app.py

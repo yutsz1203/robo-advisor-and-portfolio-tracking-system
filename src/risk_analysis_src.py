@@ -56,7 +56,7 @@ def get_returns(symbols, period="1y", interval="1d", log=False):
     if log:
         returns = np.log(prices).diff()
     else:
-        returns = prices.pct_change()
+        returns = prices.pct_change(fill_method=None)
     returns = returns.dropna(how="all").iloc[1:]
     return returns
 

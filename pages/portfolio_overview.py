@@ -63,7 +63,7 @@ tooltips = [
 ]
 title = "Portfolio Value"
 chart = create_chart(portfolio_value_df, "date", base, tooltips, title)
-st.altair_chart(chart, use_container_width=True)
+st.altair_chart(chart, width="stretch")
 
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(

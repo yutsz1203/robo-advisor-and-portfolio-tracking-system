@@ -1,6 +1,6 @@
 import time
 
-import mariadb
+import pymysql
 import pandas as pd
 import sqlalchemy
 import streamlit as st
@@ -12,10 +12,10 @@ today = time.strftime("%Y-%m-%d")
 
 @st.cache_resource
 def init_db_engine() -> sqlalchemy.Engine:
-    db_config = st.secrets["mariadb"]
+    db_config = st.secrets["db"]
 
     engine = create_engine(
-        f"mysql+mysqlconnector://{db_config['user']}:{db_config['password']}"
+        f"mysql+pymysql://{db_config['user']}:{db_config['password']}"
         f"@{db_config['host']}:{db_config['port']}/{db_config['database']}"
     )
 
@@ -29,19 +29,19 @@ def db_connect():
 
 
 @st.cache_resource(show_spinner=False)
-def mariadb_connect() -> mariadb.Cursor:
-    cfg = st.secrets["mariadb"]
+def mariadb_connect() -> pymysql.cursors.Cursor:
+    cfg = st.secrets["db"]
     try:
-        conn = mariadb.connect(
+        conn = pymysql.connect(
             host=cfg["host"],
             port=cfg.get("port", 6608),
             user=cfg["user"],
             password=cfg["password"],
             database="FYP",
+            autocommit=True,
         )
-        conn.autocommit = True
         return conn.cursor()
-    except mariadb.Error as e:
+    except pymysql.Error as e:
         st.error(f"Connection error: {e}")
         return None
 

@@ -368,7 +368,7 @@ with tab1:
     ]
     title = "Historical Return"
     chart = create_chart(daily_return, "Date", base, tooltips, title)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
 with tab2:
     col7, col8, col9 = st.columns(3)

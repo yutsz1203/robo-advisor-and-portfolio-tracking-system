@@ -1,6 +1,6 @@
 import re
 
-import mariadb
+import pymysql
 import streamlit as st
 import yfinance as yf
 
@@ -105,7 +105,7 @@ def delete_tx(tid, conn):
         tid = int(tid)
         # Fetch the transaction details before deleting
         conn.execute(
-            "SELECT date, symbol, price, quantity, action, commission FROM FYP.Transaction WHERE transactionID = ?",
+            "SELECT date, symbol, price, quantity, action, commission FROM FYP.Transaction WHERE transactionID = %s",
             (tid,),
         )
         row = conn.fetchone()
@@ -115,7 +115,7 @@ def delete_tx(tid, conn):
         tx_date, symbol, price, quantity, action, commission = row
 
         # Delete the transaction
-        conn.execute("DELETE FROM FYP.Transaction WHERE transactionID = ?", (tid,))
+        conn.execute("DELETE FROM FYP.Transaction WHERE transactionID = %s", (tid,))
 
         # Reverse the holdings update
         holdings_df = fetch_holdings()
@@ -144,15 +144,15 @@ def delete_tx(tid, conn):
             )
 
             if abs(new_quantity) < 1e-6:
-                conn.execute("DELETE FROM FYP.Holding WHERE symbol = ?", (symbol,))
+                conn.execute("DELETE FROM FYP.Holding WHERE symbol = %s", (symbol,))
             else:
                 conn.execute(
-                    "UPDATE FYP.Holding SET quantity=?, costBasis=? WHERE symbol=?",
+                    "UPDATE FYP.Holding SET quantity=%s, costBasis=%s WHERE symbol=%s",
                     (new_quantity, new_costbasis, symbol),
                 )
 
         return True
-    except (ValueError, mariadb.Error) as e:
+    except (ValueError, pymysql.Error) as e:
         st.error(f"Delete failed: {e}")
         return False
 
@@ -160,7 +160,7 @@ def delete_tx(tid, conn):
 def insert_tx(form, conn):
     try:
         conn.execute(
-            "INSERT INTO FYP.Transaction VALUES (?, ?, ?, ?, ?, ?, ?, ?)", form
+            "INSERT INTO FYP.Transaction VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", form
         )
         holdings_df = fetch_holdings()
         tx_date, symbol, price, quantity, action, commission = form[1:-1]
@@ -186,8 +186,8 @@ def insert_tx(form, conn):
             conn.execute(
                 """
                 UPDATE FYP.Holding
-                SET quantity=?, costBasis=?
-                WHERE symbol=?
+                SET quantity=%s, costBasis=%s
+                WHERE symbol=%s
                 """,
                 (new_quantity, new_costbasis, symbol),
             )
@@ -200,10 +200,10 @@ def insert_tx(form, conn):
                 quantity * price * action + commission,
                 1,
             )
-            conn.execute("INSERT INTO FYP.Holding VALUES (?, ?, ?, ?)", new_holding)
+            conn.execute("INSERT INTO FYP.Holding VALUES (%s, %s, %s, %s)", new_holding)
 
         return 1
-    except mariadb.Error as e:
+    except pymysql.Error as e:
         st.error(e)
         return 0
 
@@ -211,8 +211,8 @@ def insert_tx(form, conn):
 def insert_new_asset(conn, symbol: str):
 
     try:
-        conn.execute("SELECT * FROM Asset WHERE symbol = ?", [symbol])
-    except mariadb.Error as e:
+        conn.execute("SELECT * FROM Asset WHERE symbol = %s", [symbol])
+    except pymysql.Error as e:
         print(e)
         return None
 

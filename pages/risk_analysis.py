@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import quantstats as qs
 import seaborn as sns
 import streamlit as st
@@ -177,12 +178,27 @@ with tab5:
     st.write("### Portfolio Correlation Analysis")
 
     indv_returns = get_returns(symbols, period=period, interval="1mo")
-    corr_matrix = get_corr_matrix(indv_returns)
-    n = len(symbols)
-    h, w = min(n + 1, 10), min(n - 1, 8)
-    plt.figure(figsize=(h, w))
-    sns.heatmap(corr_matrix, annot=True, cmap="Reds", fmt=".2f")
-    st.pyplot(plt)
+
+    selected_symbols = st.multiselect(
+        "Select assets to include",
+        options=symbols,
+        default=symbols,
+    )
+
+    if len(selected_symbols) < 2:
+        st.warning("Please select at least 2 assets to display the correlation matrix.")
+    else:
+        filtered_returns = indv_returns[selected_symbols]
+        corr_matrix = get_corr_matrix(filtered_returns)
+        fig = px.imshow(
+            corr_matrix,
+            text_auto=".2f",
+            color_continuous_scale="Reds",
+            zmin=-1,
+            zmax=1,
+        )
+        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+        st.plotly_chart(fig, width="stretch")
 
 # Factor analysis
 with tab6:
